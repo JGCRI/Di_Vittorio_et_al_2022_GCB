@@ -1,0 +1,983 @@
+---
+title: "Figures and analysis for DiVittorio et al. 2022"
+Authors: Kanishka Narayan & Alan Di Vittorio
+output: html_document
+---
+
+# Setup paths 
+```{r setup paths, include=FALSE}
+knitr::opts_knit$set(root.dir = normalizePath("C:/Projects/Protected_area_paper/")) 
+
+getwd()
+```
+
+# Load libraries
+```{r, libraries& initializations}
+library(rgcam)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggsci)
+library(parallel)
+library(doParallel)
+
+#Check working directory
+print(paste0("Current working directory is - ",getwd()))
+
+#Define directories- 
+#1. Path to header files,scripts
+hdr_path <-"scripts/"
+
+#2. Path to databses
+db_path<-"databases/"
+
+#3.Project name and date 
+project_name<-"Protected area paper"
+date <- date()
+```
+# Additional functions
+```{r, load support functions}
+# Load all support functions into memory
+source( paste0(hdr_path,"diag_header.R"))	# configuration and helper functions
+source( paste0(hdr_path,"diag_grapher.R"))  # functions to generate figures
+source( paste0(hdr_path,"color_schemes.R" )) # some predefined color schemes
+source( paste0(hdr_path,"diag_util_functions.R")) # library of useful utility functions
+```
+
+# Scenario names (Make changes here to change scenario names)
+```{r}
+detach("package:plyr")
+
+# Batch query results already saved to CSV to read
+BATCH_QUERY_RESULTS <- c( )
+
+
+low_availability_scenario <- c("Reference")
+high_availability_scenario <- c("Reference")
+
+QUERY_BATCH_FILE <- paste0("Verification_queries/Model_verification_queries_food_demand.xml")
+
+
+tables_reference <- loadProject("project_files/tables_reference.proj")
+tables_reference_high <- loadProject("project_files/tables_reference_high.proj")
+#These is the range 
+prot_constraints <- seq(0,100,by =10)
+
+#Load all projects 
+for(i in prot_constraints){
+  
+  assign(paste0("tables_",i,"prot"),loadProject(paste0("project_files/tables_",i,"prot.proj")))
+  
+}
+
+# If the project files have been created, set this to TRUE
+tables_created <- FALSE
+```
+
+# Generate tables
+```{r, create tables here}
+
+if (tables_created){
+  print("Tables have already been created. Files have been read in!")
+}else{
+
+  branch_db_conn<-localDBConn(paste0(db_path),paste0("database_basexdb"))
+tables_reference<-addScenario(branch_db_conn, tables_reference, low_availability_scenario, QUERY_BATCH_FILE)
+
+branch_db_conn<-localDBConn(paste0(db_path),paste0("database_basexdbhighavailability"))
+tables_reference_high<-addScenario(branch_db_conn, tables_reference_high, high_availability_scenario, QUERY_BATCH_FILE)
+
+for ( i in prot_constraints){
+  
+  branch_db_conn<-localDBConn(paste0(db_path),paste0("database_basexdb",i,"percprot"))
+  
+  assign(paste0("tables_",i,"prot"),addScenario(branch_db_conn, paste0("tables_",i,"prot.proj"), low_availability_scenario, QUERY_BATCH_FILE))
+  
+  
+}
+  
+  }
+```
+# Final constants and figure formats
+```{r, add schemes, output folders}
+
+#Add constants for scheme
+scheme_basic <- theme_bw() +
+  theme(legend.text = element_text(size = 15)) +
+  theme(legend.title = element_text(size = 15)) +
+  theme(axis.text = element_text(size = 18)) +
+  theme(axis.title = element_text(size = 18, face = "bold")) +
+  theme(plot.title = element_text(size = 15, face = "bold", vjust = 1)) +
+  theme(plot.subtitle = element_text(size = 9, face = "bold", vjust = 1))+ 
+  theme(strip.text = element_text(size = 7))+
+  theme(strip.text.x = element_text(size = 18, face = "bold"))+
+  theme(strip.text.y = element_text(size = 15, face = "bold"))+
+  theme(legend.position = "right")+
+  theme(legend.text = element_text(size = 12))+
+  theme(legend.title = element_text(size = 12,color = "black",face="bold"))+
+  theme(axis.text.x= element_text(angle = 90,hjust=1))+
+  theme(legend.background = element_blank(),
+        legend.box.background = element_rect(colour = "black"))
+
+theme0 <- theme(
+  panel.border = element_rect(colour = "black", size=1),
+  axis.text.y = element_text(angle = 0, color = "black", size = 15, margin = margin(r = 10)),
+  axis.text.x = element_text(angle = 90, color = "black", size = 15, margin = margin(t = 10), vjust= 0.5),
+  axis.title.y = element_text(size = 15, margin = margin(t = 0, r = 10, b = 0, l = 0)),
+  axis.title.x = element_text(size = 15, margin = margin(t = 10, r = 0, b = 0, l = 0)),
+  strip.text = element_text(size = 16),
+  plot.title = element_text(hjust = 0.5,margin=margin(0,0,15,0)),
+  legend.position="right", legend.justification = "center",
+  legend.title = element_blank(),
+  legend.key.size = unit(1.5, "cm"),
+  legend.key.height=unit(1.5,"line"),
+  legend.spacing.x = unit(1, 'cm'), 
+  legend.background = element_blank()
+)    
+
+
+dir.create("csv")
+dir.create("images")
+
+output_path_csv <- "csv/"
+output_path_images <- "images/"
+
+SSP_spatial <- "Global"
+spatial <- "Global"
+```
+# Figures
+
+## Figure 1: Land allocation
+```{r, Land allocation plot, fig.height=6, fig.width=10}
+
+
+getQuery(tables_reference, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("High Availability"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0(100-i," percent"), policy ="CORE"))->new_table
+  
+}
+
+
+plot_type <-"barplot"
+#Land allocation
+landuse.d <- new_table  
+landuse.d$agg.land <- landuse.d[["land-allocation"]]
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
+landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
+#landuse.d$agg.land <- factor(landuse.d$agg.land, levels=names(PAL_landuse))
+landuse.d %>%
+    group_by(Availability,region,year,policy,agg.land) %>%
+    mutate(value=sum(value)) %>%
+     ungroup() %>%
+     dplyr::select(Availability,region,year,policy,agg.land,value) %>%
+     distinct()->landuse.d
+
+
+
+landuse.d <- add_global_sum(landuse.d)
+landplot<-landuse.d %>% filter(!agg.land %in% c("desert","urban"))
+landplot[TITLE_FIELD_NAME] <- "Land Use by Type"
+
+landplot <- landuse.d %>% filter(!agg.land %in% c("desert","urban"))
+
+
+landplot$Availability <- factor(landplot$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
+
+for(i in c(unique(landplot$region))){
+p <- ggplot(landplot %>% filter(region==i,
+                                !Availability %in% c("Low Availability", "High Availability"))) + geom_line(data=landplot%>% filter(region==i,
+                                          !Availability %in% c("Low Availability", "High Availability")                                                                                                     ),aes(x=year, y=value, color=Availability), size=1.2) +
+  geom_line(data=landplot %>% filter(Availability == "Low Availability",region==i),aes(x=year, y=value), color="grey",size=1.3,alpha=0.6, show.legend = FALSE)+
+  geom_point(data=landplot %>% filter(Availability == "Low Availability",region==i),aes(x=year, y=value), color="black",size=1.3,alpha=0.6, show.legend = FALSE)+
+geom_line(data=landplot %>% filter(Availability == "High Availability",region==i),aes(x=year, y=value), color="grey", show.legend = FALSE,size=1.3,alpha=0.6)+
+  geom_point(data=landplot %>% filter(Availability == "High Availability",region==i),aes(x=year, y=value), color="black",shape=18, show.legend = FALSE,size=1.3,alpha=0.6)+
+facet_wrap(~agg.land,scales = "free")+ylab("thousand km2")+ggtitle("Land allocation by type under different availability constraints ")+labs(subtitle=paste0("Regions-",toString(i),". Points are the Low Availability scenario, diamonds are the High Availability scenario."))+
+scale_color_viridis(discrete = TRUE, option = "D")  
+
+p+scheme_basic
+
+write.csv(landplot%>% filter(region==i),paste0(output_path_csv ,'1. Land allocation by type',project_name,toString(i),'.csv'))
+ggsave( paste0(output_path_images,'1. Land allocation by type ',project_name,toString(i),'.png'),width = 10, height = 10)
+}
+```
+
+## CSV data 1: Detailed Land allocation (Select year below)
+```{r}
+
+getQuery(tables_reference, "detailed land allocation") %>% 
+       mutate(Protection_constraint = paste0("Low Availability"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "detailed land allocation") %>% 
+       mutate(Protection_constraint = paste0("High Availability"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "detailed land allocation") %>% 
+       mutate(Protection_constraint = paste0(i," percent"), policy ="CORE"))->new_table
+  
+}
+
+
+plot_type <-"barplot"
+#Land allocation
+landuse.d <- new_table  
+# landuse.d %>% mutate(`land-allocation`=if_else(grepl("biomass",`land-allocation`),"biomass",`land-allocation`))-> landuse.d   
+
+
+
+write.csv(new_table %>% filter(year==2050), "Detailed land allocation 2050.csv")
+
+```
+
+
+## Figure 2: Crop production by type
+```{r, crop production, fig.width=10, fig.height=6}
+
+getQuery(tables_reference, "Ag Production by Crop Type") %>% 
+       mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
+
+
+getQuery(tables_reference_high, "Ag Production by Crop Type") %>% 
+       mutate(Availability = paste0("High Availability"), policy ="CORE")->new_table_high
+
+
+new_table <- bind_rows(new_table, new_table_high)
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "Ag Production by Crop Type") %>% 
+       mutate(Availability = paste0(100 - i," percent"), policy ="CORE"))->new_table
+  
+}
+
+crop <- bind_rows(new_table) %>% 
+        group_by(region,Availability,policy,output,year) %>% 
+        mutate(value=sum(value)) %>% 
+        ungroup() %>% 
+        select(region,Availability,policy,output,year,value) %>% 
+        distinct() %>% 
+        add_global_sum() %>% 
+        #filter(region %in% spatial) %>% 
+        filter(!output %in% c("UnmanagedLand","NonFoodDemand_Forest"))
+
+crop$Availability <- factor(crop$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
+for (i in unique(crop$region)){
+p <- ggplot(crop %>% filter(region==i)) + geom_line(data=crop %>% filter(!Availability %in% c("Low Availability", "High Availability"),region ==i),aes(x=year, y=value, color=Availability), size=1.2)   +facet_wrap(~output,scales = "free_y")+
+geom_point(data=crop %>% filter(Availability == "Low Availability",
+                                region==i),aes(x=year, y=value), color="black", show.legend = FALSE,alpha=0.5)+
+geom_line(data=crop %>% filter(Availability == "Low Availability",
+                               region==i),aes(x=year, y=value), color="grey", show.legend = FALSE)+  
+geom_point(data=crop %>% filter(Availability == "High Availability",
+                                region==i),aes(x=year, y=value), color="black", show.legend = FALSE, shape=18,alpha=0.5)+
+geom_line(data=crop %>% filter(Availability == "High Availability",
+                               region==i),aes(x=year, y=value), color="black", show.legend = FALSE, color="grey")+  
+ylab("Mt (EJ for biomass)")+ggtitle("Crop production")+labs(subtitle=paste0("Regions-",toString(i),". Points represent the low availability scenario, diamonds represent the high availability scenario"))+
+scale_color_viridis(discrete = TRUE, option="D")  
+
+p+scheme_basic
+
+write.csv(crop %>% filter(region==i),paste0(output_path_csv ,'Crop production scenarios',project_name,toString(i),'.csv'))
+ggsave( paste0(output_path_images,'Crop production by type',project_name,toString(i),'.png'),width = 14, height = 10)}
+
+```
+## Figure 3: Primary energy
+```{r, Primary Energy, fig.width=12, fig.height=8}
+
+
+getQuery(tables_reference, "primary energy consumption by region (direct equivalent)") %>% 
+       mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "primary energy consumption by region (direct equivalent)") %>% 
+       mutate(Availability = paste0("High Availability"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "primary energy consumption by region (direct equivalent)") %>% 
+       mutate(Availability = paste0(100-i," percent"), policy ="CORE"))->new_table
+  
+}
+
+energy_master<-new_table%>% 
+                     add_global_sum() %>% 
+                     filter(region %in% SSP_spatial) %>% 
+                     group_by(region,Availability,year,fuel) %>% 
+                     mutate(value=sum(value)) %>% 
+                     ungroup() %>% 
+                     dplyr::select(region, Availability,year,value,fuel) %>% 
+                     distinct() %>% 
+                     filter(year>2010)    
+energy_master_total <- energy_master %>% 
+                       group_by(region,Availability,year) %>% 
+                       mutate(value=sum(value),
+                              fuel= "n total energy") %>% 
+                       ungroup() %>% 
+                      distinct()
+energy_master <- bind_rows(energy_master, energy_master_total) %>% 
+                 mutate(fuel = if_else(fuel=="traded coal","k traded coal",fuel),
+                        fuel = if_else(fuel=="traded natural gas","l traded natural gas",fuel),
+                        fuel = if_else(fuel=="traded oil","m traded oil",fuel))
+
+`%notin%` <- Negate(`%in%`)
+
+energy_master$Availability <- factor(energy_master$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
+p <- ggplot() + geom_line(data=energy_master %>% filter(!Availability %in% c("Low Availability",
+                                                                             "High Availability")),aes(x=year, y=value, color=Availability), size=1.2)+ 
+    geom_point(data=energy_master %>% filter(Availability == "Low Availability"),aes(x=year, y=value), color="black", show.legend = FALSE)+
+  geom_line(data=energy_master %>% filter(Availability == "Low Availability"),aes(x=year, y=value), color="grey", show.legend = FALSE)+
+    geom_point(data=energy_master %>% filter(Availability == "High Availability"),aes(x=year, y=value), color="black", show.legend = FALSE, shape=18)+
+  geom_line(data=energy_master %>% filter(Availability == "High Availability"),aes(x=year, y=value), color="black", show.legend = FALSE)+
+    facet_wrap(~fuel,scales = "free_y")+ylab("EJ")+ggtitle("Primary energy consumption ")+labs(subtitle=paste0("Regions-",toString(SSP_spatial),". Dots are the Low Avail. scenario, Diamonds are the High Avail. scenario"))+
+  scale_color_viridis(discrete = TRUE, option="D")
+
+p+scheme_basic
+
+ggsave( paste0(output_path_images,"3.primary energy consumption in EJ SSP",project_name,'.png'),width = 14, height = 12)
+
+write.csv(energy_master, "Primary_energy_table.csv")
+
+
+```
+## Figure 4: Prices
+```{r}
+
+
+getQuery(tables_reference, "ag commodity prices") %>% 
+       mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
+
+
+getQuery(tables_reference_high, "ag commodity prices") %>% 
+       mutate(Availability = paste0("High Availability"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+
+
+new_table$Availability <- factor(new_table$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
+
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "ag commodity prices") %>% 
+       mutate(Availability = paste0(100-i," percent"), policy ="CORE"))->new_table
+  
+}
+
+new_table ->ag_price_table
+
+ dir.create("crop_prices/")
+ag_price_table$Availability <- factor(ag_price_table$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
+for(i in unique(ag_price_table$sector)){
+
+g <- ggplot(data= ag_price_table %>% filter(year>=2015, sector == i)%>% filter(!Availability %in% c("Low Availability",
+                                                                             "High Availability")), aes(x=year,y=value,color=Availability))+
+     geom_line( size=1.2, alpha=0.6)+
+     geom_line(data=ag_price_table %>% filter(Availability == "Low Availability", sector==i),aes(x=year, y=value), color="grey", show.legend = FALSE)+
+     
+     ylab("$/kg for crops, $/GJ for biomass")+
+     ggtitle(paste0("Domestic producer ", toString(i), " prices under the CORE scenarios"))+
+     facet_wrap(~region,scales= "free_y")+
+     scale_color_viridis(discrete = TRUE, option="D")+
+     geom_line(data=ag_price_table %>% filter(Availability == "High Availability",sector==i),aes(x=year, y=value), color="black", show.legend = FALSE)+
+    labs(subtitle = "Black line is the High Availability scenario and the grey line is the low availability scenario")
+
+g+ scheme_basic +                                                                
+  theme(strip.text.x = element_text(size = 12))
+
+write.csv(ag_price_table,paste0("crop_prices/","Prices for",toString(i),".csv"))
+ggsave( paste0("crop_prices/",'Prices for',project_name,toString(i),'.png'),width = 24, height = 20)
+
+
+}
+```
+## Analysis: This prints some statistics for the protected areas
+```{r}
+#Analysis of protected areas
+
+Land_data <- read.csv("other_data/Land_type_area_ha.csv", skip=5, stringsAsFactors = FALSE)
+
+land_mapping <- read.csv("other_data/MOIRAI_land_types.csv", skip=4)
+
+Land_data %>% 
+  left_join(land_mapping %>% rename(land_type= Category)) %>% 
+  mutate(total_global = sum(value),
+         Status = if_else(Status %in% c("SuitableUnprotected","Unknown"),"Unprotected","Protected"),
+Status = if_else(LT_SAGE %in% c("Tundra", "PolarDesert/Rock/Ice","Desert"),"Protected", Status),
+Status = if_else(LT_HYDE == "Managed","Unprotected", Status))-> Land_data_processed
+
+SAGE_mapping <- read.csv("other_data/SAGE_LT.csv", skip=6)
+
+Land_data_processed %>% left_join(SAGE_mapping) %>% 
+  na.omit()->Land_data_SAGE
+
+Land_data_SAGE %>% 
+  group_by(Land_Type) %>% 
+  mutate(tot_land = sum(value)) %>% 
+  ungroup() %>% 
+  group_by(Land_Type, Status) %>% 
+  mutate(perc_protected = sum(value)/tot_land) %>% 
+  ungroup() %>% 
+  select(Land_Type, Status, perc_protected) %>% 
+  distinct()->data_for_table
+
+Land_data_SAGE %>%
+  group_by(Status) %>% 
+  mutate(perc_prot_global = sum(value)/total_global) %>% 
+  ungroup() %>% 
+  filter(Status=="Protected")->data_for_print
+
+print(paste0("Total protected area % globally is - ",unique(data_for_print$perc_prot_global)))
+```
+
+## Figure 4: Maps of protected areas (Part 1)
+```{r}
+#Read in GLU_map
+
+GLU_mapping <- read.csv("other_data/GLU_ID_mapping.csv") 
+  
+
+
+```
+```{r}
+ISO_map <- read.csv("other_data/iso_GCAM_regID.csv",skip=6)
+
+Land_data_SAGE %>% 
+  left_join(ISO_map) %>% 
+  group_by(GCAM_region_ID, glu_code, Land_Type) %>% 
+  mutate(tot_land = sum(value)) %>% 
+  ungroup() %>% 
+  group_by(GCAM_region_ID, glu_code, Land_Type, Status) %>%
+  mutate(frac= sum(value)/tot_land,
+         value=sum(value)) %>% 
+  ungroup() %>% 
+  filter(Status=="Protected") %>%
+  select(GCAM_region_ID, glu_code,Land_Type,frac, value) %>% 
+  distinct() %>% 
+  mutate(id = paste0(GCAM_region_ID,glu_code,Land_Type))->data_for_map
+
+data_for_map_list <- split(data_for_map, data_for_map$id)
+
+merge_data <- function(data_for_map){
+
+  reg_name <- unique(data_for_map$GCAM_region_ID)
+  GLU_name <- unique(data_for_map$glu_code)
+    
+data_for_map %>% rename(reg_id=GCAM_region_ID,
+                                    glu_id=glu_code) %>% 
+  inner_join(GLU_mapping %>% select(x,y,reg_id,glu_id) %>% distinct() %>% filter(reg_id==reg_name,                                                          glu_id==GLU_name))->data_for_plot
+  
+  return(data_for_plot)
+  }
+```
+
+## Figure 4: Maps of protected areas (Part 2)
+```{r}
+data_for_map %>% filter(value >5000) %>% rename(reg_id=GCAM_region_ID,
+                                    glu_id=glu_code) %>% 
+  inner_join(GLU_mapping %>% select(x,y,reg_id,glu_id) %>% distinct())->map_plot
+
+
+g <- ggplot()+
+     geom_raster(data=map_plot, aes(x=x,y=y, fill=frac)) +
+     facet_wrap(~Land_Type)+
+     scale_fill_distiller(palette = "Spectral", direction = -1)+
+     xlab("long")+
+     ylab("lat")+
+     ggtitle("Protected area fractions by land type across GCAM regions")
+
+g + scheme_basic
+
+ggsave( paste0(output_path_images,"4.pMap of protected area fractions (High Availability)",project_name,'.png'),width = 18, height = 10)
+
+    
+```
+
+## Figure 5: Maps of unsuitable areas
+```{r}
+#Analysis for unsuitable areas
+
+Land_data <- read.csv("other_data/Land_type_area_ha.csv", skip=5, stringsAsFactors = FALSE)
+
+land_mapping <- read.csv("other_data/MOIRAI_land_types.csv", skip=4)
+
+Land_data %>% 
+  left_join(land_mapping %>% rename(land_type= Category)) %>% 
+  mutate(total_global = sum(value),
+         Status = if_else(Status %in% c("SuitableHighProtectionIntact",
+               "SuitbaleHighProtectionDeforested",
+               "SuitableLow Protection"),"Suitable Protected",Status))-> Land_data_processed
+
+SAGE_mapping <- read.csv("other_data/SAGE_LT.csv", skip=6)
+
+Land_data_processed %>% left_join(SAGE_mapping) %>% 
+  na.omit()->Land_data_SAGE
+
+Land_data_SAGE %>% 
+  group_by(Land_Type) %>% 
+  mutate(tot_land = sum(value)) %>% 
+  ungroup() %>% 
+  group_by(Land_Type, Status) %>% 
+  mutate(perc_protected = sum(value)/tot_land) %>% 
+  ungroup() %>% 
+  select(Land_Type, Status, perc_protected) %>% 
+  distinct()->data_for_table
+
+ISO_map <- read.csv("other_data/iso_GCAM_regID.csv",skip=6)
+
+Land_data_SAGE %>% 
+  left_join(ISO_map) %>% 
+  group_by(GCAM_region_ID, glu_code, Land_Type) %>% 
+  mutate(tot_land = sum(value)) %>% 
+  ungroup() %>% 
+  group_by(GCAM_region_ID, glu_code, Land_Type, Status) %>%
+  mutate(frac= sum(value)/tot_land,
+         value=sum(value)) %>% 
+  ungroup() %>% 
+  filter(Status=="Suitable Protected") %>%
+  select(GCAM_region_ID, glu_code,Land_Type,frac, value) %>% 
+  distinct() %>% 
+  mutate(id = paste0(GCAM_region_ID,glu_code,Land_Type))->data_for_map
+
+data_for_map %>% filter(value >5000) %>% rename(reg_id=GCAM_region_ID,
+                                    glu_id=glu_code) %>% 
+  inner_join(GLU_mapping %>% select(x,y,reg_id,glu_id) %>% distinct())->map_plot
+
+
+g <- ggplot()+
+     geom_raster(data=map_plot, aes(x=x,y=y, fill=frac)) +
+     facet_wrap(~Land_Type)+
+     scale_fill_distiller(palette = "Spectral", direction = -1)+
+     xlab("long")+
+     ylab("lat")+
+     ggtitle("Suitable Protected area fractions by land type across GCAM regions")
+
+g + scheme_basic
+
+ggsave( paste0(output_path_images,"6.Map of suitable protected area fractions",project_name,'.png'),width = 18, height = 10)
+
+```
+## Figure 6: Change in land allocation by types in 2050 (scatterplot)
+```{r}
+getQuery(tables_reference, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("Low"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("High"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0(100-i," percent"), policy ="CORE"))->new_table
+  
+}
+
+new_table %>% 
+  group_by(scenario,year,Availability,`land-allocation`) %>% 
+  mutate(value=sum(value),
+         region="autGlobal") %>%
+  ungroup() %>% 
+  distinct()->new_table_global
+  
+
+new_table %>% 
+  bind_rows(new_table_global) %>% 
+  filter(year ==2050, !`land-allocation`%in%c("tundra","urban","rock and desert"))->new_table_2050
+
+
+new_table %>% 
+  bind_rows(new_table_global) %>%
+  filter(year ==2015) %>% 
+  select(region,`land-allocation`,hist_value =value) %>% 
+  distinct()->new_table_2015
+
+new_table_2050 %>% 
+  left_join(new_table_2015) %>% 
+  mutate(hist_value = if_else(is.na(hist_value),0,hist_value))->new_table_consolidated
+
+
+landuse.d <- new_table_consolidated  
+  
+landuse.d$agg.land <- landuse.d[["land-allocation"]]
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "Desert"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
+
+landuse.d[landuse.d == Inf] <- 100
+
+
+landuse.d %>% 
+    group_by(Availability,region,year,policy,agg.land) %>% 
+    mutate(value=((sum(value)-sum(hist_value))/sum(hist_value))*100) %>%
+     ungroup() %>% 
+  mutate(value = if_else(is.na(value),0,value)) %>% 
+   group_by(Availability,year,policy,agg.land) %>% 
+    mutate(mean_value = mean(value)) %>% 
+   ungroup() %>% 
+     dplyr::select(Availability,region,year,policy,agg.land,value,mean_value) %>% 
+    distinct() %>% 
+  arrange(agg.land, mean_value)->landuse.d
+
+
+
+
+for(i in c(unique(landuse.d$agg.land))){
+
+    
+  
+g <- ggplot()+
+     geom_jitter(data= landuse.d %>% filter(region!="autGlobal", agg.land ==i), aes(x=reorder(Availability,mean_value) , y=value), color="blue",width=0.1,size=0.8,alpha=0.5)+
+     geom_point(data= landuse.d %>% filter(region=="autGlobal", agg.land ==i), aes(x= reorder(Availability,mean_value), y=mean_value),color="black",show.legend = FALSE,size=2)+
+     xlab("Availability")+
+     ylab("Percent change in land allocated by 2050")+
+     labs(subtitle= "Blue dots represent each region in GCAM, black dots represent mean across regions")+
+     ggtitle(paste0("LT-",i))+
+    facet_wrap(~agg.land,scales="free")+
+   geom_col()
+    
+
+g+ scheme_basic
+
+print(i)
+name <- gsub("/","_",i)
+ggsave( paste0(output_path_images,"7.Change in land allocation in 2050 across constraints",toString(name),project_name,'.png'),width = 10, height = 6)
+
+write.csv(landuse.d %>% filter(agg.land ==i,), paste0("Change in land allocation in 2050 across constraints ",i,".csv"))}
+
+```
+## Figure 6: Change in land allocation by types in 2050 (scatterplot only for biomass)
+```{r}
+getQuery(tables_reference, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("Low"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0("High"), policy ="CORE")->new_table_high
+
+new_table <- bind_rows(new_table,new_table_high)
+
+
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "Aggregated Land Allocation") %>% 
+       mutate(Availability = paste0(100-i," percent"), policy ="CORE"))->new_table
+  
+}
+
+new_table %>% 
+  filter(year ==2050, grepl("biomass",`land-allocation`))->new_table_2050
+
+
+new_table %>% 
+  filter(year ==2025) %>% 
+  select(region,`land-allocation`,hist_value =value) %>% 
+  distinct()->new_table_2015
+
+new_table_2050 %>% 
+  inner_join(new_table_2015) %>% 
+  mutate(value= ((value-hist_value))) %>% 
+  group_by(Availability, `land-allocation`) %>% 
+  mutate(mean_value = mean(value))->data_for_plot
+
+data_for_plot[data_for_plot == Inf] <- 100
+
+
+landuse.d <- data_for_plot  
+  
+landuse.d$agg.land <- landuse.d[["land-allocation"]]
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "Desert"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
+
+landuse.d[landuse.d == Inf] <- 100
+
+
+landuse.d %>% 
+    group_by(Availability,region,year,policy,agg.land) %>% 
+    mutate(value=((sum(value)-sum(hist_value))/sum(hist_value))*100) %>%
+     ungroup() %>% 
+  mutate(value = if_else(is.na(value),0,value)) %>% 
+   group_by(Availability,year,policy,agg.land) %>% 
+    mutate(mean_value = mean(value)) %>% 
+   ungroup() %>% 
+     dplyr::select(Availability,region,year,policy,agg.land,value,mean_value) %>% 
+    distinct() %>% 
+  arrange(agg.land, mean_value)->landuse.d
+
+g <- ggplot()+
+     geom_jitter(data= landuse.d, aes(x= reorder(Availability, mean_value), y=value), color="blue",width=0.1,size=0.8,alpha=0.5)+
+     geom_point(data= landuse.d, aes(x= reorder(Availability, mean_value), y=mean_value),color="black",show.legend = FALSE,size=2)+
+     xlab("Availability")+
+     ylab("Change in land allocated to biomass by 2050 in thous km2")+
+     labs(subtitle= "Blue dots represent each region in GCAM, black dots represent mean across values")+
+  facet_wrap(~agg.land)
+
+g+ scheme_basic+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+ggsave( paste0(output_path_images,"8.Change in land allocation in 2050 across constraints (biomass)",project_name,'.png'),width = 10, height = 6)
+```
+
+## Figure 7: Marginal change in land allocation vs Marginal change in availability (countries)
+```{r,fig.width=10,fig.height=10}
+getQuery(tables_reference, "Aggregated Land Allocation") %>% 
+       mutate(Protection = paste0("High"), policy ="CORE")->new_table
+
+getQuery(tables_reference_high, "Aggregated Land Allocation") %>% 
+       mutate(Protection = paste0("Low"), policy ="CORE")->new_table_high
+
+
+new_table <- bind_rows(new_table)
+for (i in prot_constraints){
+  
+  new_table %>% bind_rows(getQuery(get(paste0("tables_",i,"prot")), "Aggregated Land Allocation") %>% 
+       mutate(Protection = paste0(i," percent"), policy ="CORE"))->new_table
+  
+}
+
+new_table %>% 
+  group_by(`land-allocation`, year,Protection) %>% 
+  mutate(value = sum(value),
+         region = "Global") %>% 
+  ungroup() %>% 
+  distinct()->new_table_global
+  
+
+new_table %>% 
+  bind_rows(new_table_global) %>% 
+  filter(year %in% c(2050)) ->new_table_2050
+
+
+new_table %>%
+  bind_rows(new_table_global) %>% 
+  filter(year ==2025) %>% 
+  select(region,`land-allocation`,hist_value =value) %>% 
+  distinct()->new_table_2015
+
+new_table_2050 %>% 
+  left_join(new_table_2015) %>% 
+  mutate(value= ((value)))->new_table_2
+
+landuse.d <- new_table_2  
+  
+landuse.d$agg.land <- landuse.d[["land-allocation"]]
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "biomass"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "crops"
+landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
+stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
+
+
+landuse.d %>% 
+    group_by(Protection,region,year,policy,agg.land) %>% 
+    mutate(value=((sum(value))),
+           hist_value = sum(hist_value)) %>%
+     ungroup() %>% 
+     dplyr::select(Protection,region,year,policy,agg.land,value,hist_value) %>% 
+    distinct()->landuse.d
+
+landuse.d %>% 
+  distinct() %>%
+  select(-hist_value) %>% 
+  spread(Protection,value) %>%
+  left_join(landuse.d %>% filter(Protection %in% c("High")) %>% select(region, agg.land, hist_value) %>% distinct()) %>% 
+  mutate(`100 percent`=  (`100 percent`- `90 percent`),
+         `90 percent`=  (`90 percent`- `80 percent`),
+         `80 percent`=  (`80 percent`- `70 percent`),
+         `70 percent`=  (`70 percent`- `60 percent`),
+         `60 percent`=  (`60 percent`- `50 percent`),
+         `50 percent`=  (`50 percent`- `40 percent`),
+         `40 percent`=  (`40 percent`- `30 percent`),
+         `30 percent`=  (`30 percent`- `20 percent`),
+         `20 percent`=  (`20 percent`- `10 percent`),
+         `10 percent`=  (`10 percent`- `0 percent`)
+         ) %>% 
+    select(-`0 percent`, -High) %>% 
+  gather("Protection","value","10 percent":"90 percent") %>% 
+  filter(year%in% c(2050)) %>% 
+  mutate(value = value) %>% 
+  mutate(Protection= as.integer(gsub(" percent","",Protection)))->data_for_plot
+
+low_avail_details <- read.csv("land_convertible.csv",stringsAsFactors = FALSE) %>% select(-Needed_unprotected_percent_convertible)
+needed <- read.csv("land_convertible.csv",stringsAsFactors = FALSE) %>% 
+          select(-agg.land,-available) %>% 
+          distinct()
+
+data_for_plot %>% left_join(low_avail_details) %>% mutate(available= available) %>% 
+  left_join(needed, by = c("region"))->data_for_plot
+
+# data_for_plot$Protection <-factor(data_for_plot$Protection, levels=c(100,90,80,70,60,50,40,30,20,10,0)) 
+
+break_points <- data_for_plot %>% 
+                group_by(region) %>% 
+                mutate(min_val= min(value)) %>% 
+                ungroup() %>% 
+                mutate(start_break= min_val *0.7,
+                       end_break = min_val * 0.95) %>% 
+                select(region, start_break, end_break) %>% 
+                distinct()
+formatter1000 <- function(x){ 
+    100-x 
+}
+
+g <- ggplot()+
+  geom_point(data=data_for_plot,
+            aes(x=(Protection),y=value,color=agg.land,group=agg.land))+
+  geom_line(data=data_for_plot,
+            aes(x=(Protection),y=value,color=agg.land,group=agg.land))+
+  facet_wrap(~region,scales="free_y")+
+  geom_vline(data=data_for_plot %>% na.omit(),aes(xintercept=available,color=agg.land), linetype = 2,show.legend = FALSE) +
+  ylab("Marginal percent increase/decrease in thous km2")+
+  xlab("Availability")+
+  ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
+  scale_color_aaas()+
+  scale_x_continuous(labels= formatter1000)
+
+g + scheme_basic +
+  theme(axis.text.x = element_text(angle = 90))
+write.csv(data_for_plot ,paste0(output_path_csv,"Marginal_plot.csv"))
+ggsave( paste0(output_path_images,"9.Change in land allocation in 2050",project_name,'.png'),width = 16, height = 14)
+```
+## Figure 8: Marginal change in land allocation vs Marginal change in availability (Global)
+```{r}
+
+intersection_points <- data_for_plot %>% 
+                       group_by(region,agg.land) %>% 
+                       mutate(diff = abs(available- Protection)) %>% 
+                       filter(diff < 10) %>% 
+                       mutate(value = mean(value),
+                              Protection=available) %>% 
+                       ungroup() %>% 
+                       distinct()
+
+intersection_points_needed <- data_for_plot %>% 
+                       group_by(region) %>% 
+                       mutate(diff = abs(Needed_unprotected_percent_convertible- Protection)) %>% 
+                       filter(diff < 10) %>% 
+                       mutate(value = mean(value),
+                              Protection=Needed_unprotected_percent_convertible) %>% 
+                       ungroup() %>% 
+                       distinct()
+
+data_for_plot %>% filter(agg.land=="biomass")->biomass_data
+
+g <- ggplot()+
+   geom_point(data=intersection_points %>% na.omit() %>%  
+                filter(region=="Global"),
+             aes(x=available,y=value,color=agg.land),size=2)+
+  geom_vline(data=data_for_plot %>% na.omit() %>% filter(region=="Global"),aes(xintercept=100-Needed_unprotected_percent_convertible), color="black",linetype = 1,size=1.6,show.legend = FALSE) +
+  geom_line(data=data_for_plot%>% 
+               filter(region=="Global"),
+            aes(x=Protection,y=value,color=agg.land,group=agg.land))+
+  geom_vline(data=data_for_plot %>% na.omit() %>% filter(region=="Global"),aes(xintercept=available,color=agg.land), linetype = 2,size=1,show.legend = FALSE) +
+  facet_wrap(~region,scales="free_y")+
+  ylab("Marginal percent increase/decrease in thous km2")+
+  xlab("Availability")+
+  ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
+  scale_color_npg()+
+  guides(color=guide_legend(title="Land type"))+
+  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000)
+
+g + scheme_basic
+
+ggsave( paste0(output_path_images,"10.Change in land allocation in 2050",project_name,'.png'),width = 16, height = 14)
+```
+
+## Figure 9: Comparison of total land that is protected and unmanaged land that is protected
+```{r}
+
+Land_data <- read.csv("other_data/Land_type_area_ha.csv", skip=5, stringsAsFactors = FALSE) %>% filter(year ==2016)
+
+Land_data %>% group_by(land_type) %>% 
+  mutate(value = sum(value),
+         iso = "Global",
+         glu_code= 9999) %>% 
+  ungroup() %>% 
+  distinct()->Land_data_global
+
+land_mapping <- read.csv("other_data/MOIRAI_land_types.csv", skip=4)
+
+Land_data %>% 
+  bind_rows(Land_data_global) %>% 
+  left_join(land_mapping %>% rename(land_type= Category)) -> Land_data_processed
+
+
+Land_data_processed %>% 
+  filter(LT_HYDE == "Unmanaged") %>% 
+  mutate(unmanaged = value)-> Land_data_unmanaged
+
+Land_data_processed %>% 
+  left_join(Land_data_unmanaged %>% select(iso,glu_code,LT_SAGE,LT_HYDE,Status,unmanaged) %>%
+              distinct()) %>% 
+  mutate(unmanaged = ifelse(is.na(unmanaged),0,unmanaged)) %>% 
+  mutate(Status = if_else(LT_HYDE %in% c("Cropland","Pasture","UrbanLand"),"Unprotected",if_else(Status =="SuitableUnprotected","Unprotected","Protected")))->LT_merged
+ 
+
+
+LT_merged %>% 
+  group_by(iso) %>% 
+  mutate(tot_land = sum(value),
+         tot_unmanaged = sum(unmanaged)) %>% 
+  ungroup() %>% 
+  group_by(iso, Status) %>% 
+  mutate(perc_protected_tot = sum(value)/tot_land,
+         perc_protected_unmanaged = sum(value)/tot_unmanaged) %>% 
+  ungroup() %>% 
+  select(iso, Status, perc_protected_tot, perc_protected_unmanaged) %>% 
+  distinct() %>% 
+  filter(Status==
+           "Protected")->data_for_table
+
+g <- ggplot(data= data_for_table, aes(x=perc_protected_unmanaged, perc_protected_tot))+
+    geom_point(color="blue",alpha=0.5)+
+    geom_abline(slope=1, linetype="dashed",color="black")+
+    xlab("Percentage of unmanaged land that is protected in 2016")+
+    ylab("Percentage of total land that is protected in 2016")
+
+g+scheme_basic
+
+
+```
+## THE END ##
+
