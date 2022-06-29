@@ -185,7 +185,6 @@ xcodeuserstate
 xcuserdata
 project.xcworkspace/
 # Project files
-project_files/*.*
 Release
 ipch
 Run Test Cases
