@@ -1,7 +1,9 @@
 ---
 title: "Figures and analysis for DiVittorio et al. 2022"
 Authors: Kanishka Narayan & Alan Di Vittorio
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 # Setup paths 
@@ -20,6 +22,9 @@ library(ggplot2)
 library(ggsci)
 library(parallel)
 library(doParallel)
+library(sf)
+library(rgdal)
+library(viridis)
 
 #Check working directory
 print(paste0("Current working directory is - ",getwd()))
@@ -460,7 +465,7 @@ Land_data_SAGE %>%
 print(paste0("Total protected area % globally is - ",unique(data_for_print$perc_prot_global)))
 ```
 
-## Figure 6: Change in land allocation by types in 2050 (scatterplot)
+## Figure 5: Change in land allocation by types in 2050 (scatterplot)
 ```{r}
 dir.create("images/marginal_scatterplots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
@@ -486,32 +491,36 @@ new_table %>%
   
 
 new_table %>% 
-  bind_rows(new_table_global) %>% 
+  left_join(new_table_global %>% select(-region)%>%  rename(global_value=value)) %>% 
   filter(year ==2050, !`land-allocation`%in%c("tundra","urban","rock and desert"))->new_table_2050
 
 
 new_table %>% 
-  bind_rows(new_table_global) %>%
+  left_join(new_table_global %>% select(-region) %>%  rename(global_value=value)) %>%
   filter(year ==2025) %>% 
-  select(region,`land-allocation`,hist_value =value) %>% 
+  select(region,`land-allocation`,hist_value =value,hist_global_value=global_value) %>% 
   distinct()->new_table_2015
 
 new_table_2050 %>% 
   left_join(new_table_2015) %>% 
-  mutate(hist_value = if_else(is.na(hist_value),0,hist_value))->new_table_consolidated
+  mutate(hist_value = if_else(is.na(hist_value),0,hist_value),
+         hist_global_value = if_else(is.na(hist_global_value),0,hist_global_value))->new_table_consolidated
 
 
 landuse.d <- new_table_consolidated  
   
-landuse.d$agg.land <- landuse.d[["land-allocation"]]
 landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
 landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
 landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
 landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
 landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
 landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
-landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "Desert"
+landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
+landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
 landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
 stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
 
@@ -520,11 +529,12 @@ landuse.d[landuse.d == Inf] <- 100
 
 landuse.d %>% 
     group_by(Availability,region,year,policy,agg.land) %>% 
-    mutate(value=((sum(value)-sum(hist_value))/sum(hist_value))*100) %>%
+    mutate(value=(((sum(value)-sum(hist_value)))/sum(hist_value))*100,
+           global_value=(((sum(global_value)-sum(hist_global_value)))/sum(hist_global_value))*100) %>%
      ungroup() %>% 
   mutate(value = if_else(is.na(value),0,value)) %>% 
    group_by(Availability,year,policy,agg.land) %>% 
-    mutate(mean_value = mean(value)) %>% 
+    mutate(mean_value = mean(global_value)) %>% 
    ungroup() %>% 
      dplyr::select(Availability,region,year,policy,agg.land,value,mean_value) %>% 
     distinct() %>% 
@@ -539,7 +549,7 @@ for(i in c(unique(landuse.d$agg.land))){
   
 g <- ggplot()+
      geom_jitter(data= landuse.d %>% filter(region!="autGlobal", agg.land ==i), aes(x=reorder(Availability,mean_value) , y=value), color="blue",width=0.1,size=0.8,alpha=0.5)+
-     geom_point(data= landuse.d %>% filter(region=="autGlobal", agg.land ==i), aes(x= reorder(Availability,mean_value), y=mean_value),color="black",show.legend = FALSE,size=2)+
+     geom_point(data= landuse.d %>% filter(region=="USA", agg.land ==i), aes(x= reorder(Availability,mean_value), y=mean_value),color="black",show.legend = FALSE,size=2)+
      xlab("Availability")+
      ylab("Percent change in land allocated by 2050")+
      labs(subtitle= "Blue dots represent each region in GCAM, black dots represent mean across regions")+
@@ -556,7 +566,7 @@ ggsave( paste0("images/marginal_scatterplots/","5.Change in land allocation in 2
 
 }
 
-write.csv(landuse.d , paste0(output_path_csv,"5. Change in land allocation in 2050 across constraints ","all_LT",".csv"))
+write.csv(landuse.d %>% rename(global_value=mean_value), paste0(output_path_csv,"5. Change in land allocation in 2050 across constraints ","all_LT",".csv"))
 
 ```
 
@@ -656,10 +666,17 @@ landuse.d %>%
 
 low_avail_details <- read.csv("other_data/land_convertible.csv",stringsAsFactors = FALSE) %>% select(-Needed_unprotected_percent_convertible,-new_unmanaged) %>% 
           mutate(available=100-available)
+
+
 needed <- read.csv("other_data/land_convertible.csv",stringsAsFactors = FALSE) %>% 
           select(-available,-Needed_unprotected_percent_convertible) %>% 
           distinct() %>% 
           mutate(new_unmanaged=100-new_unmanaged)
+
+avail_managed <-  read.csv("other_data/available_managed.csv",stringsAsFactors = FALSE) %>% dplyr::select(-Needed_unprotected_percent_convertible,-needed_managed) %>% 
+                  distinct() %>% 
+                  mutate(new_managed= 100-new_managed) 
+
 
 needed_managed <- read.csv("other_data/available_managed.csv",stringsAsFactors = FALSE) %>% 
                   dplyr::select(-Needed_unprotected_percent_convertible,-new_managed) %>% 
@@ -667,9 +684,11 @@ needed_managed <- read.csv("other_data/available_managed.csv",stringsAsFactors =
                   mutate(needed_managed= 100-needed_managed)
 
 data_for_plot %>% left_join(low_avail_details) %>% mutate(available= available) %>% 
+  left_join(avail_managed, by = c("region")) %>% 
   left_join(needed, by = c("region","agg.land")) %>% 
   left_join(needed_managed, by =c("region")) %>% 
-  mutate(new_unmanaged=if_else(is.na(new_unmanaged),needed_managed,new_unmanaged))->data_for_plot
+  mutate(new_unmanaged=if_else(is.na(new_unmanaged),needed_managed,new_unmanaged),
+         available= if_else(is.na(available),new_managed,available))->data_for_plot
 
 
 formatter1000 <- function(x){ 
@@ -701,26 +720,25 @@ data_for_plot %>% filter(agg.land=="biomass")->biomass_data
 g <- ggplot()+
    geom_point(data=intersection_points %>% na.omit() %>%  
                 filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),
-             aes(x=available,y=value,color=agg.land),size=5)+
-  geom_point(data=intersection_points_needed %>% filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=5) +
+             aes(x=available,y=value,color=agg.land),size=4)+
+  geom_point(data=intersection_points_needed %>% filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=4) +
   geom_line(data=data_for_plot%>% 
                filter(region==region_select,
                       !agg.land %in% c("rock and desert", "urban","desert")),
             aes(x=Protection,y=value,color=agg.land,group=agg.land))+
-  geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
+  # geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
   facet_wrap(~region,scales="free_y")+
-  ylab("Marginal percent increase/decrease in thous km2")+
+  ylab("Marginal increase/decrease in thous km2")+
   xlab("Availability")+
   ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
   scale_color_lancet()+
   guides(color=guide_legend(title="Land type"))+
-  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10))
+  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10),minor_breaks = seq(0, 100, 10))+
+  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.")
 
 g + scheme_basic+
   theme(axis.line = element_line(color='black'),
-    plot.background = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank())
+    plot.background = element_blank())
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
@@ -729,10 +747,10 @@ write.csv(data_for_plot, "6. Marginal_plot_thouskm2.csv")
 
 ```
 
-## Figure 7: Marginal change in land allocation vs Marginal change in availability (Percent)
+## Figure 6: Marginal change in land allocation vs Marginal change in availability (Percent)
 ```{r,fig.width=10,fig.height=10}
 
-region_select <- "Global"
+region_select <- "India"
 
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
        mutate(Protection = paste0("High"), policy ="CORE")->new_table
@@ -823,10 +841,17 @@ landuse.d %>%
 
 low_avail_details <- read.csv("other_data/land_convertible.csv",stringsAsFactors = FALSE) %>% select(-Needed_unprotected_percent_convertible,-new_unmanaged) %>% 
           mutate(available=100-available)
+
+
 needed <- read.csv("other_data/land_convertible.csv",stringsAsFactors = FALSE) %>% 
           select(-available,-Needed_unprotected_percent_convertible) %>% 
           distinct() %>% 
           mutate(new_unmanaged=100-new_unmanaged)
+
+avail_managed <-  read.csv("other_data/available_managed.csv",stringsAsFactors = FALSE) %>% dplyr::select(-Needed_unprotected_percent_convertible,-needed_managed) %>% 
+                  distinct() %>% 
+                  mutate(new_managed= 100-new_managed) 
+
 
 needed_managed <- read.csv("other_data/available_managed.csv",stringsAsFactors = FALSE) %>% 
                   dplyr::select(-Needed_unprotected_percent_convertible,-new_managed) %>% 
@@ -834,9 +859,11 @@ needed_managed <- read.csv("other_data/available_managed.csv",stringsAsFactors =
                   mutate(needed_managed= 100-needed_managed)
 
 data_for_plot %>% left_join(low_avail_details) %>% mutate(available= available) %>% 
+  left_join(avail_managed, by = c("region")) %>% 
   left_join(needed, by = c("region","agg.land")) %>% 
   left_join(needed_managed, by =c("region")) %>% 
-  mutate(new_unmanaged=if_else(is.na(new_unmanaged),needed_managed,new_unmanaged))->data_for_plot
+  mutate(new_unmanaged=if_else(is.na(new_unmanaged),needed_managed,new_unmanaged),
+         available= if_else(is.na(available),new_managed,available))->data_for_plot
 
 
 formatter1000 <- function(x){ 
@@ -848,7 +875,7 @@ formatter1000 <- function(x){
 intersection_points <- data_for_plot %>% 
                        group_by(region,agg.land) %>% 
                        mutate(diff = abs(available- Protection)) %>% 
-                       filter(diff < 10) %>% 
+                       filter(diff < 12) %>% 
                        mutate(value = mean(value),
                               Protection=available) %>% 
                        ungroup() %>% 
@@ -868,26 +895,25 @@ data_for_plot %>% filter(agg.land=="biomass")->biomass_data
 g <- ggplot()+
    geom_point(data=intersection_points %>% na.omit() %>%  
                 filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),
-             aes(x=available,y=value,color=agg.land),size=5)+
-  geom_point(data=intersection_points_needed %>% filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=5) +
+             aes(x=available,y=value,color=agg.land),size=4)+
+  geom_point(data=intersection_points_needed %>% filter(region==region_select,!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=4) +
   geom_line(data=data_for_plot%>% 
                filter(region==region_select,
                       !agg.land %in% c("rock and desert", "urban","desert")),
             aes(x=Protection,y=value,color=agg.land,group=agg.land))+
-  geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
+  # geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
   facet_wrap(~region,scales="free_y")+
-  ylab("Marginal percent increase/decrease in Percent")+
+  ylab("Marginal increase/decrease in Percent")+
   xlab("Availability")+
   ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
   scale_color_lancet()+
   guides(color=guide_legend(title="Land type"))+
-  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10))
+  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10),minor_breaks = seq(0,100,10))+
+  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.")
 
 g + scheme_basic+
   theme(axis.line = element_line(color='black'),
-    plot.background = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.grid.major = element_blank())
+    plot.background = element_blank())
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 percent",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
@@ -895,6 +921,56 @@ write.csv(data_for_plot, "6. Marginal_plot_percent.csv")
 
 
 ```
+
+#Figure 7a: Irrigated bioenergy yields
+```{r}
+
+shapefile <- read_sf("other_data/glu_boundaries_moirai_landcells_3p1_0p5arcmin.shp")
+
+irrigated_bio_yields <- read.csv("other_data/L163.ag_irrBioYield_GJm2_R_GLU.csv",skip=4) %>% mutate(glu_id= as.numeric(gsub("GLU","",GLU))) %>% 
+  group_by(glu_id) %>% 
+  mutate(Yield_GJm2=mean(Yield_GJm2)) %>% 
+  ungroup() %>% 
+  dplyr::select(glu_id,Yield_GJm2) %>% 
+  distinct()
+shapefile %>% left_join(irrigated_bio_yields)->joined_file
+
+g <- ggplot(data=joined_file)+
+     geom_sf(aes(fill=Yield_GJm2))+
+     scale_fill_viridis(option="magma")+
+     ggtitle("Irrigated bioenergy yields by water basin in GJ/m2")
+
+g+scheme_basic
+
+ggsave( paste0(output_path_images,"7.Irrigated bioenergy yields by water basin in GJ per m2",project_name,toString(region_select),'.png'),width = 16, height = 14)
+
+```
+#Figure 7b: Rainfed bioenergy yields
+```{r}
+
+shapefile <- read_sf("other_data/glu_boundaries_moirai_landcells_3p1_0p5arcmin.shp")
+
+rfd_bio_yields <- read.csv("other_data/L163.ag_rfdBioYield_GJm2_R_GLU.csv",skip=4) %>% mutate(glu_id= as.numeric(gsub("GLU","",GLU))) %>% 
+  group_by(glu_id) %>% 
+  mutate(Yield_GJm2=mean(Yield_GJm2)) %>% 
+  ungroup() %>% 
+  dplyr::select(glu_id,Yield_GJm2) %>% 
+  distinct()
+shapefile %>% left_join(rfd_bio_yields)->joined_file
+
+g <- ggplot(data=joined_file)+
+     geom_sf(aes(fill=Yield_GJm2))+
+     scale_fill_viridis(option="magma")+
+     ggtitle("Rainfed bioenergy yields by water basin in GJ/m2")
+
+g+scheme_basic
+
+ggsave( paste0(output_path_images,"7b.Rainfed bioenergy yields by water basin in GJ per m2",project_name,toString(region_select),'.png'),width = 16, height = 14)
+
+```
+
+
+
 
 ## THE END ##
 
