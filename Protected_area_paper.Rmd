@@ -6,15 +6,9 @@ output:
   html_document: default
 ---
 
-# Setup paths 
-```{r setup paths, include=FALSE}
-knitr::opts_knit$set(root.dir = normalizePath("C:/Projects/Protected_area_paper/")) 
-
-getwd()
-```
 
 # Load libraries
-```{r, libraries& initializations}
+```{r, libraries& initializations,echo=FALSE, warning=FALSE}
 library(rgcam)
 library(dplyr)
 library(tidyr)
@@ -41,7 +35,7 @@ project_name<-"Protected area paper"
 date <- date()
 ```
 # Additional functions
-```{r, load support functions}
+```{r, load support functions, echo=FALSE, message=FALSE, warning=FALSE}
 # Load all support functions into memory
 source( paste0(hdr_path,"diag_header.R"))	# configuration and helper functions
 source( paste0(hdr_path,"diag_grapher.R"))  # functions to generate figures
@@ -50,7 +44,7 @@ source( paste0(hdr_path,"diag_util_functions.R")) # library of useful utility fu
 ```
 
 # Scenario names (Make changes here to change scenario names)
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 detach("package:plyr")
 
 # Batch query results already saved to CSV to read
@@ -80,7 +74,7 @@ tables_created <- TRUE
 ```
 
 # Generate tables
-```{r, create tables here}
+```{r, create tables here, echo=FALSE, message=FALSE, warning=FALSE}
 
 if (tables_created){
   print("Tables have already been created. Files have been read in!")
@@ -104,7 +98,7 @@ for ( i in prot_constraints){
   }
 ```
 # Final constants and figure formats
-```{r, add schemes, output folders}
+```{r, add schemes, output folders, echo=FALSE, message=FALSE, warning=FALSE}
 
 #Add constants for scheme
 scheme_basic <- theme_bw() +
@@ -140,12 +134,12 @@ theme0 <- theme(
   legend.background = element_blank()
 )    
 
+dir.create("outputs")
+dir.create("outputs/csv")
+dir.create("outputs/images")
 
-dir.create("csv")
-dir.create("images")
-
-output_path_csv <- "csv/"
-output_path_images <- "images/"
+output_path_csv <- "outputs/csv/"
+output_path_images <- "outputs/images/"
 
 SSP_spatial <- "Global"
 spatial <- "Global"
@@ -153,9 +147,9 @@ spatial <- "Global"
 # Figures
 
 ## Figure 1: Land allocation
-```{r, Land allocation plot, fig.height=6, fig.width=10}
+```{r, Land allocation plot, fig.height=6, fig.width=10,echo=FALSE, message=FALSE, warning=FALSE}
 
-dir.create("images/land_allocation_plots/")
+dir.create("outputs/images/land_allocation_plots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
 
@@ -223,14 +217,14 @@ scale_color_viridis(discrete = TRUE, option = "D")
 p+scheme_basic
 
 
-ggsave( paste0("images/land_allocation_plots/",'1. Land allocation by type ',project_name,toString(i),'.png'),width = 10, height = 10)
+ggsave( paste0("outputs/images/land_allocation_plots/",'1. Land allocation by type ',project_name,toString(i),'.png'),width = 10, height = 10)
 }
 
 write.csv(landplot,paste0(output_path_csv ,'1. Land allocation by type',project_name,"all regions",'.csv'))
 ```
 
 ## CSV data 1: Detailed Land allocation (Select year below)
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 
 getQuery(tables_reference, "detailed land allocation") %>% 
        mutate(Protection_constraint = paste0("Low Availability"), policy ="CORE")->new_table
@@ -262,8 +256,8 @@ write.csv(new_table %>% filter(year==2015), paste0(output_path_csv,"Detailed lan
 
 
 ## Figure 2: Crop production by type
-```{r, crop production, fig.width=10, fig.height=6}
-dir.create("images/crop_production_plots/")
+```{r, crop production, fig.width=10, fig.height=6,echo=FALSE,message=FALSE, warning=FALSE}
+dir.create("outputs/images/crop_production_plots/")
 
 getQuery(tables_reference, "Ag Production by Crop Type") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
@@ -309,14 +303,14 @@ scale_color_viridis(discrete = TRUE, option="D")
 p+scheme_basic
 
 
-ggsave( paste0("images/crop_production_plots/",'2. Crop production by type',project_name,toString(i),'.png'),width = 14, height = 10)}
+ggsave( paste0("outputs/images/crop_production_plots/",'2. Crop production by type',project_name,toString(i),'.png'),width = 14, height = 10)}
 
 
 write.csv(crop ,paste0(output_path_csv ,'2. Crop production scenarios all regions',toString(i),'.csv'))
 
 ```
 ## Figure 3: Primary energy
-```{r, Primary Energy, fig.width=12, fig.height=8}
+```{r, Primary Energy, fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 
 
 getQuery(tables_reference, "primary energy consumption by region (direct equivalent)") %>% 
@@ -370,15 +364,15 @@ p+scheme_basic
 
 ggsave( paste0(output_path_images,"3.primary energy consumption in EJ SSP",project_name,'.png'),width = 14, height = 12)
 
-write.csv(energy_master, "Primary_energy_table.csv")
+write.csv(energy_master, paste0(output_path_csv,"3. Primary_energy_table.csv"))
 
 
 ```
 ## Figure 4: Prices
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 
-dir.create("images/price_plots/")
-dir.create("csv/price_data/")
+dir.create("outputs/images/price_plots/")
+dir.create("outputs/csv/price_data/")
 getQuery(tables_reference, "ag commodity prices") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
 
@@ -409,25 +403,26 @@ g <- ggplot(data= ag_price_table %>% filter(year>=2015, sector == i)%>% filter(!
                                                                              "High Availability")), aes(x=year,y=value,color=Availability))+
      geom_line( size=1.2, alpha=0.6)+
      geom_line(data=ag_price_table %>% filter(Availability == "Low Availability", sector==i),aes(x=year, y=value), color="grey", show.legend = FALSE)+
-     
+     geom_point(data=ag_price_table %>% filter(Availability == "Low Availability",sector==i),aes(x=year, y=value), color="black", show.legend = FALSE)+
+     geom_point(data=ag_price_table %>% filter(Availability == "High Availability",sector==i),aes(x=year, y=value), color="black", show.legend = FALSE, shape=18)+
      ylab("$/kg for crops, $/GJ for biomass")+
      ggtitle(paste0("Domestic producer ", toString(i), " prices under the CORE scenarios"))+
      facet_wrap(~region,scales= "free_y")+
      scale_color_viridis(discrete = TRUE, option="D")+
-     geom_line(data=ag_price_table %>% filter(Availability == "High Availability",sector==i),aes(x=year, y=value), color="black", show.legend = FALSE)+
-    labs(subtitle = "Black line is the High Availability scenario and the grey line is the low availability scenario")
+     geom_line(data=ag_price_table %>% filter(Availability == "High Availability",sector==i),aes(x=year, y=value), color="grey", show.legend = FALSE)+
+    labs(subtitle = "Dots are the Low Avail. scenario, Diamonds are the High Avail. scenario")
 
 g+ scheme_basic +                                                                
   theme(strip.text.x = element_text(size = 12))
 
-write.csv(ag_price_table,paste0("csv/price_data/","4. Prices for",toString(i),".csv"))
-ggsave( paste0("images/price_plots/",'4. Prices for',project_name,toString(i),'.png'),width = 24, height = 20)
+write.csv(ag_price_table,paste0("outputs/csv/price_data/","4. Prices for",toString(i),".csv"))
+ggsave( paste0("outputs/images/price_plots/",'4. Prices for',project_name,toString(i),'.png'),width = 24, height = 20)
 
 
 }
 ```
 ## Analysis: This prints some statistics for the protected areas
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 #Analysis of protected areas
 
 Land_data <- read.csv("other_data/Land_type_area_ha.csv", skip=5, stringsAsFactors = FALSE)
@@ -466,8 +461,8 @@ print(paste0("Total protected area % globally is - ",unique(data_for_print$perc_
 ```
 
 ## Figure 5: Change in land allocation by types in 2050 (scatterplot)
-```{r}
-dir.create("images/marginal_scatterplots/")
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
+dir.create("outputs/images/marginal_scatterplots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
        mutate(Availability = paste0("Low"), policy ="CORE")->new_table
 
@@ -562,7 +557,7 @@ g+ scheme_basic
 
 print(i)
 name <- gsub("/","_",i)
-ggsave( paste0("images/marginal_scatterplots/","5.Change in land allocation in 2050 across constraints",toString(name),project_name,'.png'),width = 10, height = 6)
+ggsave( paste0("outputs/images/marginal_scatterplots/","5.Change in land allocation in 2050 across constraints",toString(name),project_name,'.png'),width = 10, height = 6)
 
 }
 
@@ -572,7 +567,7 @@ write.csv(landuse.d %>% rename(global_value=mean_value), paste0(output_path_csv,
 
 
 ## Figure 6: Marginal change in land allocation vs Marginal change in availability (thous km2)
-```{r,fig.width=10,fig.height=10}
+```{r,fig.width=10,fig.height=10,echo=FALSE,message=FALSE, warning=FALSE}
 
 region_select <- "Global"
 
@@ -742,15 +737,48 @@ g + scheme_basic+
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
-write.csv(data_for_plot, "6. Marginal_plot_thouskm2.csv")
+write.csv(data_for_plot, paste0(output_path_csv,"6. Marginal_plot_thouskm2.csv"))
 
 
 ```
+## Figure 6: Marginal change in land allocation vs Marginal change in availability (thous km2) all regions
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
+g <- ggplot()+
+   geom_point(data=intersection_points %>% na.omit() %>%  
+                filter(!agg.land %in% c("rock and desert", "urban","desert")),
+             aes(x=available,y=value,color=agg.land),size=2)+
+  geom_point(data=intersection_points_needed %>% filter(!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=2) +
+  geom_line(data=data_for_plot%>% 
+               filter(
+                      !agg.land %in% c("rock and desert", "urban","desert")),
+            aes(x=Protection,y=value,color=agg.land,group=agg.land))+
+  # geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
+  facet_wrap(~region,scales="free_y")+
+  ylab("Marginal increase/decrease in thous km2")+
+  xlab("Availability")+
+  ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
+  scale_color_lancet()+
+  guides(color=guide_legend(title="Land type"))+
+  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10),minor_breaks = seq(0, 100, 10))+
+  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.")
+
+g + scheme_basic+
+  theme(axis.line = element_line(color='black'),
+    plot.background = element_blank(),
+    axis.text=element_text(size=10),
+    strip.text.x = element_text(size = 8))
+
+ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 all regions thous km2",project_name,'.png'),width = 16, height = 14)
+
+#write.csv(data_for_plot, paste0(output_path_csv,"6. Marginal_plot_thouskm2.csv"))
+```
+
+
 
 ## Figure 6: Marginal change in land allocation vs Marginal change in availability (Percent)
-```{r,fig.width=10,fig.height=10}
+```{r,fig.width=10,fig.height=10,echo=FALSE,message=FALSE, warning=FALSE}
 
-region_select <- "India"
+region_select <- "Global"
 
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
        mutate(Protection = paste0("High"), policy ="CORE")->new_table
@@ -917,13 +945,47 @@ g + scheme_basic+
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 percent",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
-write.csv(data_for_plot, "6. Marginal_plot_percent.csv")
+write.csv(data_for_plot, paste0(output_path_csv,"6. Marginal_plot_percent.csv"))
+
+
+```
+#Figure 6: Marginal change in land allocation vs Marginal change in availability (Percent) all regions
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
+
+
+g <- ggplot()+
+   geom_point(data=intersection_points %>% na.omit() %>%  
+                filter(!agg.land %in% c("rock and desert", "urban","desert")),
+             aes(x=available,y=value,color=agg.land),size=2)+
+  geom_point(data=intersection_points_needed %>% filter(!agg.land %in% c("rock and desert", "urban","desert")),aes(x=new_unmanaged,y=value,color=agg.land),show.legend = FALSE,shape=17,size=2) +
+  geom_line(data=data_for_plot%>% 
+               filter(!agg.land %in% c("rock and desert", "urban","desert")),
+            aes(x=Protection,y=value,color=agg.land,group=agg.land))+
+  # geom_vline(data=data_for_plot %>% na.omit() %>% filter(region==region_select),aes(xintercept=available,color=agg.land), linetype = 3,size=2,show.legend = FALSE) +
+  facet_wrap(~region,scales="free_y")+
+  ylab("Marginal increase/decrease in Percent")+
+  xlab("Availability")+
+  ggtitle("Marginal increase/decrease in land allocation by land type in 2050 with increase in protection")+
+  scale_color_lancet()+
+  guides(color=guide_legend(title="Land type"))+
+  scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10),minor_breaks = seq(0,100,10))+
+  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.")
+
+g + scheme_basic+
+  theme(axis.line = element_line(color='black'),
+    plot.background = element_blank(),
+    axis.text=element_text(size=10),
+    strip.text.x = element_text(size = 8))
+
+ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 percent all regions",project_name,'.png'),width = 16, height = 14)
 
 
 ```
 
+
+
 #Figure 7a: Irrigated bioenergy yields
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 
 shapefile <- read_sf("other_data/glu_boundaries_moirai_landcells_3p1_0p5arcmin.shp")
 
@@ -946,7 +1008,7 @@ ggsave( paste0(output_path_images,"7.Irrigated bioenergy yields by water basin i
 
 ```
 #Figure 7b: Rainfed bioenergy yields
-```{r}
+```{r,fig.height=14,fig.width=10,echo=FALSE,message=FALSE, warning=FALSE}
 
 shapefile <- read_sf("other_data/glu_boundaries_moirai_landcells_3p1_0p5arcmin.shp")
 
