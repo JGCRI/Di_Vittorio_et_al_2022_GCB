@@ -1,0 +1,10 @@
+Package: DiVittorioetal2022
+Version: 1.0.0
+Type: Package
+Title: Produces analysis for the paper by Di Vittorio et al.
+Author: Kanishka Narayan, Alan Di Vittorio
+Maintainer: Kanishka Narayan <kanishka.narayan@pnnl.gov>
+Description: Produces all analysis and figures presented in Di Vittorio et al.
+License: BSD 2
+Encoding: UTF-8
+LazyData: true
