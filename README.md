@@ -36,3 +36,9 @@ To reproduce the results and figures shown in Di Vittorio et al.,
 2. Install `R studio` from here - https://www.rstudio.com/
 3. Run the rmd file in the root directory called `Protected_area_paper.rmd` chunk by chunk to generate relevant figures. All outputs (csv and images) will be saved to the `outputs/` folder (in separate subfolders).
 4. We have made all outputs available to users on the repo for convenience sake. 
+
+<br>
+<p align="center">
+<a href="https://jgcri.github.io/Di_Vittorio_et_al_2022_GCB/docs/articles/Protected_area_paper.html" target="_blank"><img src="https://github.com/JGCRI/jgcricolors/blob/main/vignettes/button_metarepo.PNG?raw=true" height="60"/></a>
+</p>
+

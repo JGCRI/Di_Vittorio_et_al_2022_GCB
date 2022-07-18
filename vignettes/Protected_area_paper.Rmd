@@ -1,6 +1,6 @@
 ---
-title: "Figures and analysis for DiVittorio et al. 2022"
-Authors: Kanishka Narayan & Alan Di Vittorio
+title: "Uniform land protection targets may be inefficient at preserving the extent of undeveloped land and could cause substantial regional shifts in land use"
+Authors: Alan V. Di Vittorio, Kanishka Narayan, Pralit Patel, Kate Calvin, Chris Vernon
 output:
    html_document:
     toc: true
@@ -81,9 +81,7 @@ tables_created <- TRUE
 
 ```{r, create tables here, echo=FALSE, message=FALSE, warning=FALSE}
 
-if (tables_created){
-  print("Tables all read in! Figures will be generated below")
-}else{
+if (!tables_created){
 
   branch_db_conn<-localDBConn(paste0(db_path),paste0("database_basexdb"))
 tables_reference<-addScenario(branch_db_conn, tables_reference, low_availability_scenario, QUERY_BATCH_FILE)
@@ -153,7 +151,7 @@ spatial <- "Global"
 
 ## Figure 1: Land allocation
 
-### Land allocation shown here globally. For country level results, check the outputs folder in the root directory.
+### Land allocation shown here globally. For country level results, check the `outputs/images/land_allocation_plots/` folder in the root directory.
 ```{r, Land allocation plot, fig.width=12, fig.height=8,echo=FALSE, message=FALSE, warning=FALSE}
 
 dir.create("outputs/images/land_allocation_plots/")
@@ -234,7 +232,7 @@ write.csv(landplot,paste0(output_path_csv ,'1. Land allocation by type',project_
 ## Figure 2: Crop production by type
 
 
-### Crop production shown here globally. For country level results, check the outputs folder in the root directory.
+### Crop production shown here globally. For country level results, check the `outputs/images/crop_production_plots/` folder in the root directory.
 ```{r, crop production, fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 dir.create("outputs/images/crop_production_plots/")
 
@@ -356,7 +354,7 @@ p+scheme_basic
 
 ## Figure 4: Prices
 
-### Only Wheat prices shown here. For other commodity prices check outputs folder in root directory.
+### Only Wheat prices shown here. For other commodity prices check `outputs/images/price_plots/` folder in root directory.
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 
 dir.create("outputs/images/price_plots/")
@@ -414,7 +412,7 @@ g+ scheme_basic +
 
 ## Figure 5: Change in land allocation by types in 2050 (scatterplot)
 
-### Scatterplot shown here for Crops. For other land types check the output folder in the root directory.
+### Scatterplot shown here for Crops. For other land types check the `outputs/images/marginal_scatterplots/` folder in the root directory.
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 dir.create("outputs/images/marginal_scatterplots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
