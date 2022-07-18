@@ -40,5 +40,5 @@ To reproduce the results and figures shown in Di Vittorio et al.,
 
 <br>
 <p align="center">
-<a href="https://jgcri.github.io/Di_Vittorio_et_al_2022_GCB/Protected_area_paper.html" target="_blank"><img src="https://github.com/JGCRI/jgcricolors/blob/main/vignettes/button_metarepo.PNG?raw=true" height="60"/></a>
+<a href="https://jgcri.github.io/Di_Vittorio_et_al_2022_GCB/docs/articles/Protected_area_paper.html" target="_blank"><img src="https://github.com/JGCRI/jgcricolors/blob/main/vignettes/button_metarepo.PNG?raw=true" height="60"/></a>
 </p>
