@@ -152,6 +152,9 @@ spatial <- "Global"
 ## Figure 1: Land allocation
 
 ### Land allocation shown here globally. For country level results, check the `outputs/images/land_allocation_plots/` folder in the root directory.
+
+#### `Global land allocation by land type under different availability constraints. Dots represent the LOW availability scenario and diamonds represent the HIGH availability scenario.`
+
 ```{r, Land allocation plot, fig.width=12, fig.height=8,echo=FALSE, message=FALSE, warning=FALSE}
 
 dir.create("outputs/images/land_allocation_plots/")
@@ -233,6 +236,9 @@ write.csv(landplot,paste0(output_path_csv ,'1. Land allocation by type',project_
 
 
 ### Crop production shown here globally. For country level results, check the `outputs/images/crop_production_plots/` folder in the root directory.
+
+#### `Global crop and commodity production under different land availability constraints. Dots represent the LOW availability scenario and diamonds represent the HIGH availability scenario.`
+
 ```{r, crop production, fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 dir.create("outputs/images/crop_production_plots/")
 
@@ -292,6 +298,7 @@ p+scheme_basic
 
 ## Figure 3: Primary energy
 
+#### `Primary energy consumption under different land availability constraints.`
 
 ```{r, Primary Energy, fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 
@@ -354,7 +361,7 @@ p+scheme_basic
 
 ## Figure 4: Prices
 
-### Only Wheat prices shown here. For other commodity prices check `outputs/images/price_plots/` folder in root directory.
+### Only Wheat regional prices shown here. For other commodity prices check `outputs/images/price_plots/` folder in root directory.
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 
 dir.create("outputs/images/price_plots/")
@@ -413,6 +420,9 @@ g+ scheme_basic +
 ## Figure 5: Change in land allocation by types in 2050 (scatterplot)
 
 ### Scatterplot shown here for Crops. For other land types check the `outputs/images/marginal_scatterplots/` folder in the root directory.
+
+#### `Change in land allocation by 2050. are percent change relative to 2015.The blue dots represent each GCAM region, and the black dots represent the global values.`
+
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 dir.create("outputs/images/marginal_scatterplots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
@@ -520,6 +530,8 @@ g+ scheme_basic
 
 
 ## Figure 6a: Marginal change in land allocation vs Marginal change in availability (thous km2)
+
+#### `Marginal absolute changes in land allocation in 2050 due to incremental decreases in land availability, globally. The x-axis denotes a 10% decrease in land availability from the previous tic, starting at 100% availability. The y-axis values are absolute change in area relative to that at the previous availability level. Circles indicate the current availability and extent of unmanaged forest, grassland, shrubland, respectively, and of these three types combined (on the managed land type lines), based on the 2015 GCAM initial state. The triangles indicate land type availability and extent when protected area is approximately doubled. The absolute change in land allocation of a particular type due to meeting the new protection target is estimated by moving from the circle to the triangle along a given line.`
 
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
 
@@ -734,6 +746,8 @@ ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 all regio
 
 
 ## Figure 6c: Marginal change in land allocation vs Marginal change in availability (Percent)
+
+#### `Marginal relative changes in land allocation in 2050 due to incremental decreases in land availability, globally. The x-axis denotes a 10% decrease in land availability from the previous tic, starting at 100% availability. The y-axis values are percent change in land type area relative to that at the previous availability level. Circles indicate the current availability and extent of unmanaged forest, grassland, shrubland, respectively, and of these three types combined (on the managed land type lines), based on the 2015 GCAM initial state. The triangles indicate land type availability and extent when protected area is approximately doubled. The relative change in land allocation of a particular type due to meeting the new protection target is estimated by moving from the circle to the triangle along a given line.`
 
 
 ```{r,fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
