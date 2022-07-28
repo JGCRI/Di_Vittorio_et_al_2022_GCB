@@ -1,5 +1,4 @@
-[![DOI](https://zenodo.org/badge/265119113.svg)](https://zenodo.org/badge/latestdoi/265119113)
-
+[![DOI](https://zenodo.org/badge/476038123.svg)](https://zenodo.org/badge/latestdoi/476038123)
 
 # Di_Vittorio_et_al_2022_GCB
 
