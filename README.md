@@ -23,7 +23,7 @@ Land change projection is highly uncertain yet drives critical estimates of carb
 
 ### Models and software used
 Models used for this experiment include, 
-1. Global Change Analysis Model (GCAM) v5.4 with modifications for the protected areas and bio-energy constraints. Latest version of GCAM available [here](https://zenodo.org/record/6619287) and latest documentation on GCAM available [here](https://jgcri.github.io/gcam-doc/). The specific model version used for this analysis with all configuration files already et up is available [here] (https://zenodo.org/record/7057561).
+1. Global Change Analysis Model (GCAM) v5.4 with modifications for the protected areas and bio-energy constraints. Latest version of GCAM available [here](https://zenodo.org/record/6619287) and latest documentation on GCAM available [here](https://jgcri.github.io/gcam-doc/). The specific model version used for this analysis with all configuration files already et up is available [here](https://zenodo.org/record/7057561).
 2. moirai land data system v 3.1.1. Latest version with documentation available on GitHub [here](https://github.com/JGCRI/moirai) 
 
 ### Input data
