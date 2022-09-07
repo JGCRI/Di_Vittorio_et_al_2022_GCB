@@ -4,7 +4,7 @@
 
 **Uniform land protection targets may be inefficient at preserving the extent of undeveloped land and could cause substantial regional shifts in land use**
 
-Alan V. Di Vittorio<sup>1\*</sup>,Kanishka B. Narayan <sup>2</sup>,
+Alan V. Di Vittorio<sup>1\*</sup>,Kanishka B. Narayan <sup>2</sup>
 ,Pralit Patel <sup>2</sup>, Katherine Calvin <sup>2</sup> & Chris R. Vernon <sup>2</sup>
 
 
