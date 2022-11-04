@@ -108,7 +108,7 @@ scheme_basic <- theme_bw() +
   theme(axis.title = element_text(size = 18, face = "bold")) +
   theme(plot.title = element_text(size = 15, face = "bold", vjust = 1)) +
   theme(plot.subtitle = element_text(size = 9, face = "bold", vjust = 1))+ 
-  theme(strip.text = element_text(size = 7))+
+  theme(strip.text = element_text(size = 6))+
   theme(strip.text.x = element_text(size = 12, face = "bold"))+
   theme(strip.text.y = element_text(size = 15, face = "bold"))+
   theme(legend.position = "right")+
@@ -128,7 +128,7 @@ theme0 <- theme(
   plot.title = element_text(hjust = 0.5,margin=margin(0,0,15,0)),
   legend.position="right", legend.justification = "center",
   legend.title = element_blank(),
-  legend.key.size = unit(1.5, "cm"),
+  legend.key.size = unit(3, "cm"),
   legend.key.height=unit(1.5,"line"),
   legend.spacing.x = unit(1, 'cm'), 
   legend.background = element_blank()
@@ -153,6 +153,7 @@ dir.create("outputs/images/land_allocation_plots/")
 getQuery(tables_reference, "Aggregated Land Allocation") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
 
+
 getQuery(tables_reference_high, "Aggregated Land Allocation") %>% 
        mutate(Availability = paste0("High Availability"), policy ="CORE")->new_table_high
 
@@ -170,19 +171,19 @@ plot_type <-"barplot"
 #Land allocation
 landuse.d <- new_table  
 landuse.d$agg.land <- landuse.d[["land-allocation"]]
-landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
-landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "(a) Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "(a) Biomass"
 landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
 landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
-landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
-landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
-landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "(c) Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "(d) Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "(f) Grazed Pasture"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "(g) Shrubland"
 stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
 #landuse.d$agg.land <- factor(landuse.d$agg.land, levels=names(PAL_landuse))
 landuse.d %>%
@@ -214,10 +215,10 @@ geom_line(data=landplot %>% filter(Availability == "High Availability",region==i
 facet_wrap(~agg.land,scales = "free")+ylab("thousand km2")+ggtitle("Land allocation by type under different availability constraints ")+labs(subtitle=paste0("Regions-",toString(i),". Points are the Low Availability scenario, diamonds are the High Availability scenario."))+
 scale_color_viridis(discrete = TRUE, option = "D")  
 
-p+scheme_basic
+p+scheme_basic+ theme(plot.subtitle=element_text(size=12))
 
 
-ggsave( paste0("outputs/images/land_allocation_plots/",'1. Land allocation by type ',project_name,toString(i),'.png'),width = 10, height = 10)
+ggsave( paste0("outputs/images/land_allocation_plots/",'1. Land allocation by type ',project_name,toString(i),'.png'),width = 10.5, height = 10)
 }
 
 write.csv(landplot,paste0(output_path_csv ,'1. Land allocation by type',project_name,"all regions",'.csv'))
@@ -259,6 +260,8 @@ write.csv(new_table %>% filter(year==2015), paste0(output_path_csv,"Detailed lan
 ```{r, crop production, fig.width=10, fig.height=6,echo=FALSE,message=FALSE, warning=FALSE}
 dir.create("outputs/images/crop_production_plots/")
 
+crop_prod_mapping <- read.csv("other_data/Crop_prod_mapping.csv", stringsAsFactors = FALSE)
+
 getQuery(tables_reference, "Ag Production by Crop Type") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
 
@@ -284,7 +287,10 @@ crop <- bind_rows(new_table) %>%
         distinct() %>% 
         add_global_sum() %>% 
         #filter(region %in% spatial) %>% 
-        filter(!output %in% c("UnmanagedLand","NonFoodDemand_Forest"))
+        filter(!output %in% c("UnmanagedLand","NonFoodDemand_Forest")) %>% 
+        left_join(crop_prod_mapping) %>% 
+        dplyr::select(-output) %>% 
+        rename(output=output_name)
 
 crop$Availability <- factor(crop$Availability, levels = c("0 percent", "10 percent", "20 percent","30 percent","40 percent","50 percent","60 percent","70 percent","80 percent", "90 percent", "100 percent", "High Availability", "Low Availability"))
 for (i in unique(crop$region)){
@@ -311,7 +317,7 @@ write.csv(crop ,paste0(output_path_csv ,'2. Crop production scenarios all region
 ```
 ## Figure 3: Primary energy
 ```{r, Primary Energy, fig.width=12, fig.height=8,echo=FALSE,message=FALSE, warning=FALSE}
-
+fuel_mapping <- read.csv("other_data/fuel_mapping.csv", stringsAsFactors = FALSE)
 
 getQuery(tables_reference, "primary energy consumption by region (direct equivalent)") %>% 
        mutate(Availability = paste0("Low Availability"), policy ="CORE")->new_table
@@ -346,7 +352,10 @@ energy_master_total <- energy_master %>%
 energy_master <- bind_rows(energy_master, energy_master_total) %>% 
                  mutate(fuel = if_else(fuel=="traded coal","k traded coal",fuel),
                         fuel = if_else(fuel=="traded natural gas","l traded natural gas",fuel),
-                        fuel = if_else(fuel=="traded oil","m traded oil",fuel))
+                        fuel = if_else(fuel=="traded oil","m traded oil",fuel)) %>% 
+                 left_join(fuel_mapping) %>% 
+                 dplyr::select(-fuel) %>% 
+                 rename(fuel=fuel_name)
 
 `%notin%` <- Negate(`%in%`)
 
@@ -360,7 +369,7 @@ p <- ggplot() + geom_line(data=energy_master %>% filter(!Availability %in% c("Lo
     facet_wrap(~fuel,scales = "free_y")+ylab("EJ")+ggtitle("Primary energy consumption ")+labs(subtitle=paste0("Regions-",toString(SSP_spatial),". Dots are the Low Avail. scenario, Diamonds are the High Avail. scenario"))+
   scale_color_viridis(discrete = TRUE, option="D")
 
-p+scheme_basic
+p+scheme_basic+ theme(plot.subtitle=element_text(size=12))
 
 ggsave( paste0(output_path_images,"3.primary energy consumption in EJ SSP",project_name,'.png'),width = 14, height = 12)
 
@@ -504,19 +513,19 @@ new_table_2050 %>%
 
 landuse.d <- new_table_consolidated  
   
-landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
-landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "(a) Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "(a) Biomass"
 landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
 landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
-landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
-landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
-landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "(c) Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "(d) Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "(f) Grazed Pasture"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "(g) Shrubland"
 stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
 
 landuse.d[landuse.d == Inf] <- 100
@@ -613,19 +622,19 @@ landuse.d <- new_table_2
   
 
 landuse.d$agg.land <- landuse.d[["land-allocation"]]
-landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
-landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "(a) Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "(a) Biomass"
 landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
 landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
-landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
-landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
-landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "(c) Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "(d) Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "(f) Grazed Pasture"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "(g) Shrubland"
 stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
 
 
@@ -729,11 +738,12 @@ g <- ggplot()+
   scale_color_lancet()+
   guides(color=guide_legend(title="Land type"))+
   scale_shape_manual(values=c(0,1,2))+scale_x_continuous(labels=formatter1000,breaks = seq(0,100,10),minor_breaks = seq(0, 100, 10))+
-  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.")
+  labs(subtitle = "Dots are the starting percent of available land in 2015.Triangles are new percentage of available land after implementing 30 by 30 targets.", size=5)
 
 g + scheme_basic+
   theme(axis.line = element_line(color='black'),
-    plot.background = element_blank())
+    plot.background = element_blank())+
+  theme(plot.subtitle=element_text(size=12))
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
@@ -766,11 +776,12 @@ g + scheme_basic+
   theme(axis.line = element_line(color='black'),
     plot.background = element_blank(),
     axis.text=element_text(size=10),
-    strip.text.x = element_text(size = 8))
+    strip.text.x = element_text(size = 8))+
+  theme(plot.subtitle=element_text(size=12))
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 all regions thous km2",project_name,'.png'),width = 16, height = 14)
 
-#write.csv(data_for_plot, paste0(output_path_csv,"6. Marginal_plot_thouskm2.csv"))
+write.csv(data_for_plot, paste0(output_path_csv,"6. Marginal_plot_thouskm2.csv"))
 ```
 
 
@@ -821,19 +832,19 @@ new_table_2050 %>%
 landuse.d <- new_table_2  
   
 landuse.d$agg.land <- landuse.d[["land-allocation"]]
-landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "Grassland"
-landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "Crops"
-landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "Biomass"
-landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "grass", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (other)", "agg.land"] <- "(e) Grassland"
+landuse.d[landuse.d[,"land-allocation"] == "otherarable", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "RootTuber", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "crops", "agg.land"] <- "(b) Crops"
+landuse.d[landuse.d[,"land-allocation"] == "biomassGrass", "agg.land"] <- "(a) Biomass"
+landuse.d[landuse.d[,"land-allocation"] == "biomassTree", "agg.land"] <- "(a) Biomass"
 landuse.d[landuse.d[,"land-allocation"] == "tundra", "agg.land"] <- "desert"
 landuse.d[landuse.d[,"land-allocation"] == "rock and desert", "agg.land"] <- "desert"
-landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "Forests (Harvested)"
-landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "Forests (Unmanaged)"
-landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "Grazed Pasture"
-landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "Shrubland"
+landuse.d[landuse.d[,"land-allocation"] == "forest (managed)", "agg.land"] <- "(c) Forests (Harvested)"
+landuse.d[landuse.d[,"land-allocation"] == "forest (unmanaged)", "agg.land"] <- "(d) Forests (Unmanaged)"
+landuse.d[landuse.d[,"land-allocation"] == "pasture (grazed)", "agg.land"] <- "(f) Grazed Pasture"
+landuse.d[landuse.d[,"land-allocation"] == "shrubs", "agg.land"] <- "(g) Shrubland"
 stopifnot(sum(is.na(landuse.d$agg.land)) == 0)
 
 
@@ -941,7 +952,8 @@ g <- ggplot()+
 
 g + scheme_basic+
   theme(axis.line = element_line(color='black'),
-    plot.background = element_blank())
+    plot.background = element_blank())+
+  theme(plot.subtitle=element_text(size=12))
 
 ggsave( paste0(output_path_images,"6.Change in land allocation in 2050 percent",project_name,toString(region_select),'.png'),width = 16, height = 14)
 
