@@ -1,0 +1,16 @@
+output,output_name
+biomass,(a) Biomass
+Corn,(b) Corn
+FiberCrop,(c) Fibercrop
+FodderGrass,(d) Foddergrass
+FodderHerb,(e) Fodderherb
+Forest,(f) Forest
+MiscCrop,(g) Misccrop
+OilCrop,(h) Oilcrop
+OtherGrain,(i) Othergrain
+PalmFruit,(j) Palmfruit
+Pasture,(k) Pasture
+Rice,(l) Rice
+RootTuber,(m) Roottuber
+SugarCrop,(n) Sugarcrop
+Wheat,(o) Wheat
