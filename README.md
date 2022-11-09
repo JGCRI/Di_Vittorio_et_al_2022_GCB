@@ -2,7 +2,7 @@
 
 # Di_Vittorio_et_al_2022_GCB
 
-**Doubling protectd land area may be inefficient at preserving the extent of undeveloped land and could cause substantial regional shifts in land use**
+**Doubling protected land area may be inefficient at preserving the extent of undeveloped land and could cause substantial regional shifts in land use**
 
 Alan V. Di Vittorio<sup>1\*</sup>,Kanishka B. Narayan <sup>2</sup>
 ,Pralit Patel <sup>2</sup>, Katherine Calvin <sup>2</sup> & Chris R. Vernon <sup>2</sup>
@@ -42,7 +42,8 @@ To reproduce the results and figures shown in Di Vittorio et al.,
 3. Run the rmd file in the root directory called `Protected_area_paper.rmd` chunk by chunk to generate relevant figures. All outputs (csv and images) will be saved to the `outputs/` folder (in separate subfolders).
 4. Run the proc_moirai_land_distribution_public.r script in the `scripts/` folder. Outputs will be saved to the `outputs/distribuiton_threshold` folder.
 5. Run the proc_landavail_thresh_public.r script in the `scripts/` folder. Outputs will be saved to the `outputs/distribuiton_threshold` folder.
-4. We have made all outputs available in this repo for user convenience.
+6. Run the proc_avail_threshold_from_initial_public.r script in the `scripts/` folder. This output will be saved to the 'paper_figures' folder.
+7. We have made all outputs available in this repo for user convenience.
 
 
 <br>
