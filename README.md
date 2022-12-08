@@ -25,7 +25,7 @@ Land change projection is highly uncertain yet drives critical estimates of carb
 
 Models used for this experiment include, 
 1. Global Change Analysis Model (GCAM) v5.4 with modifications for the protected areas and bio-energy constraints. Latest version of GCAM available [here](https://zenodo.org/record/6619287) and latest documentation on GCAM available [here](https://jgcri.github.io/gcam-doc/). The specific model version used for this analysis with all configuration files used is available [here](https://zenodo.org/record/7057561).
-2. Moirai land data system v 3.1.1. Latest version with documentation available on GitHub [here](https://github.com/JGCRI/moirai) 
+2. Moirai land data system v 3.1 Latest version with documentation available on GitHub [here](https://github.com/JGCRI/moirai) 
 
 ### Input data
 All GCAM runs are available as `R` project files within the `project_files/` directory.Input xml files for GCAM runs can be made available on reasonbable request. Ancillary mapping files are stored within the repo under folder `other_data/`. Shapefiles and raster files used to make plots are available [here](https://zenodo.org/record/4688451)  
